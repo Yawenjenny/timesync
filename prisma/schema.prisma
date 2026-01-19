@@ -1,0 +1,59 @@
+// Prisma schema for TimeSync - Cross-Timezone Meeting Scheduler
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Meeting {
+  id                   String        @id @default(uuid())
+  organizerName        String
+  organizerEmail       String
+  organizerTimezone    String
+  expectedParticipants Int
+  dateRangeStart       DateTime
+  dateRangeEnd         DateTime
+  slotDuration         Int           // 15, 30, or 60 minutes
+  status               MeetingStatus @default(ACTIVE)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  participants Participant[]
+
+  @@index([status])
+}
+
+model Participant {
+  id        String   @id @default(uuid())
+  meetingId String
+  name      String
+  email     String
+  timezone  String
+  createdAt DateTime @default(now())
+
+  meeting       Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  availability  Availability[]
+
+  @@unique([meetingId, email])
+  @@index([meetingId])
+}
+
+model Availability {
+  id            String   @id @default(uuid())
+  participantId String
+  startTime     DateTime // Stored in UTC
+  endTime       DateTime // Stored in UTC
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+}
+
+enum MeetingStatus {
+  ACTIVE
+  COMPLETED
+}
