@@ -64,9 +64,10 @@ export async function POST(
           name,
           timezone,
           availability: {
-            create: availability.map((slot: { start: string; end: string }) => ({
+            create: availability.map((slot: { start: string; end: string; dayOfWeek?: number }) => ({
               startTime: new Date(slot.start),
               endTime: new Date(slot.end),
+              ...(slot.dayOfWeek !== undefined ? { dayOfWeek: slot.dayOfWeek } : {}),
             })),
           },
         },
@@ -83,9 +84,10 @@ export async function POST(
           email,
           timezone,
           availability: {
-            create: availability.map((slot: { start: string; end: string }) => ({
+            create: availability.map((slot: { start: string; end: string; dayOfWeek?: number }) => ({
               startTime: new Date(slot.start),
               endTime: new Date(slot.end),
+              ...(slot.dayOfWeek !== undefined ? { dayOfWeek: slot.dayOfWeek } : {}),
             })),
           },
         },
@@ -135,9 +137,11 @@ export async function POST(
           availability: p.availability.map(a => ({
             start: a.startTime,
             end: a.endTime,
+            dayOfWeek: a.dayOfWeek ?? undefined,
           })),
         })),
-        updatedMeeting.slotDuration
+        updatedMeeting.slotDuration,
+        updatedMeeting.meetingType
       )
 
       // Get AI suggestion if no overlap
@@ -169,7 +173,8 @@ export async function POST(
             timezone: p.timezone,
           })),
           overlapResult,
-          aiSuggestion
+          aiSuggestion,
+          updatedMeeting.meetingType
         )
       } catch (emailError) {
         console.error('Failed to send emails:', emailError)

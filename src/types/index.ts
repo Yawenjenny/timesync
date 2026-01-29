@@ -1,15 +1,20 @@
 export interface TimeSlot {
   start: Date
   end: Date
+  dayOfWeek?: number // 0-6 for recurring meetings (0=Sunday, 1=Monday, etc.)
 }
+
+export type MeetingType = 'ONE_TIME' | 'RECURRING'
 
 export interface CreateMeetingInput {
   organizerName: string
   organizerEmail: string
   organizerTimezone: string
   expectedParticipants: number
+  meetingType: MeetingType
   dateRangeStart: Date
   dateRangeEnd: Date
+  selectedDates?: Date[] // For one-time meetings: specific dates
   slotDuration: 15 | 30 | 60
   availability: TimeSlot[]
 }
@@ -28,8 +33,10 @@ export interface MeetingWithParticipants {
   organizerEmail: string
   organizerTimezone: string
   expectedParticipants: number
+  meetingType: MeetingType
   dateRangeStart: Date
   dateRangeEnd: Date
+  selectedDates: Date[]
   slotDuration: number
   status: 'ACTIVE' | 'COMPLETED'
   createdAt: Date

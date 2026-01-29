@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer'
-import { OverlapResult, AISuggestion } from '@/types'
+import { OverlapResult, AISuggestion, MeetingType } from '@/types'
 import { formatSlotInTimezone, getTopOverlappingSlots } from './overlap'
 
 // Create Gmail transporter
@@ -20,9 +20,11 @@ interface Participant {
 export async function sendResultsEmail(
   participants: Participant[],
   overlapResult: OverlapResult,
-  aiSuggestion: AISuggestion | null
+  aiSuggestion: AISuggestion | null,
+  meetingType: MeetingType = 'ONE_TIME'
 ): Promise<void> {
   const fromEmail = process.env.GMAIL_USER || 'noreply@timesync.app'
+  const isRecurring = meetingType === 'RECURRING'
 
   // Send personalized email to each participant
   for (const participant of participants) {
@@ -30,7 +32,8 @@ export async function sendResultsEmail(
       participant,
       participants,
       overlapResult,
-      aiSuggestion
+      aiSuggestion,
+      isRecurring
     )
 
     try {
@@ -52,15 +55,17 @@ function buildEmailContent(
   recipient: Participant,
   allParticipants: Participant[],
   overlapResult: OverlapResult,
-  aiSuggestion: AISuggestion | null
+  aiSuggestion: AISuggestion | null,
+  isRecurring: boolean = false
 ): string {
   const participantNames = allParticipants.map(p => p.name).join(', ')
+  const meetingTypeLabel = isRecurring ? 'Recurring Meeting' : 'Meeting'
 
   if (overlapResult.hasOverlap) {
     const topSlots = getTopOverlappingSlots(overlapResult.overlappingSlots, 3)
     const slotsHtml = topSlots
       .map(slot => {
-        const formatted = formatSlotInTimezone(slot, recipient.timezone)
+        const formatted = formatSlotInTimezone(slot, recipient.timezone, isRecurring)
         return `<li style="margin-bottom: 8px;"><strong>${formatted.date}</strong><br/>${formatted.startTime} - ${formatted.endTime}</li>`
       })
       .join('')
@@ -73,11 +78,11 @@ function buildEmailContent(
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: #2563eb;">Meeting Time Found!</h1>
+        <h1 style="color: #2563eb;">${meetingTypeLabel} Time Found!</h1>
 
         <p>Hi ${recipient.name},</p>
 
-        <p>Great news! Your group found common availability.</p>
+        <p>Great news! Your group found common availability${isRecurring ? ' for your recurring meeting' : ''}.</p>
 
         <h2 style="color: #1e40af;">Best Times (in your time zone)</h2>
         <ul style="list-style: none; padding: 0;">
@@ -100,7 +105,7 @@ function buildEmailContent(
 
   // No overlap - include AI suggestion
   if (aiSuggestion) {
-    const suggestedTime = formatSlotInTimezone(aiSuggestion.suggestedTime, recipient.timezone)
+    const suggestedTime = formatSlotInTimezone(aiSuggestion.suggestedTime, recipient.timezone, isRecurring)
 
     const impactHtml = aiSuggestion.participantImpact
       .map(impact => {

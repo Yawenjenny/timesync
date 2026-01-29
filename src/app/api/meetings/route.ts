@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
       dateRangeEnd,
       slotDuration,
       availability,
+      meetingType = 'ONE_TIME',
+      selectedDates = [],
     } = body
 
     // Validate required fields
@@ -41,15 +43,18 @@ export async function POST(request: NextRequest) {
         dateRangeStart: new Date(dateRangeStart),
         dateRangeEnd: new Date(dateRangeEnd),
         slotDuration: parseInt(slotDuration),
+        meetingType,
+        selectedDates: selectedDates.map((d: string) => new Date(d)),
         participants: {
           create: {
             name: organizerName,
             email: organizerEmail,
             timezone: organizerTimezone,
             availability: {
-              create: availability.map((slot: { start: string; end: string }) => ({
+              create: availability.map((slot: { start: string; end: string; dayOfWeek?: number }) => ({
                 startTime: new Date(slot.start),
                 endTime: new Date(slot.end),
+                ...(slot.dayOfWeek !== undefined ? { dayOfWeek: slot.dayOfWeek } : {}),
               })),
             },
           },

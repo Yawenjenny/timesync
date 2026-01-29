@@ -17,8 +17,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { TimeGrid } from '@/components/TimeGrid'
+import WeeklyTimeGrid from '@/components/WeeklyTimeGrid'
 import { TIMEZONES, detectUserTimezone } from '@/lib/timezones'
-import { TimeSlot } from '@/types'
+import { TimeSlot, MeetingType } from '@/types'
 import { cn } from '@/lib/utils'
 
 export function CreateMeetingForm() {
@@ -32,10 +33,12 @@ export function CreateMeetingForm() {
   const [timezone, setTimezone] = useState('')
   const [participantCount, setParticipantCount] = useState('3')
   const [slotDuration, setSlotDuration] = useState<'15' | '30' | '60'>('30')
+  const [meetingType, setMeetingType] = useState<MeetingType>('ONE_TIME')
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: new Date(),
     to: addDays(new Date(), 6),
   })
+  const [selectedDates, setSelectedDates] = useState<Date[]>([])
   const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([])
 
   // Auto-detect timezone on mount
@@ -46,12 +49,23 @@ export function CreateMeetingForm() {
     setTimezone(match?.value || 'America/New_York')
   }, [])
 
+  // Clear selections when meeting type changes
+  useEffect(() => {
+    setSelectedSlots([])
+    setSelectedDates([])
+  }, [meetingType])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (selectedSlots.length === 0) {
       setError('Please select at least one available time slot')
+      return
+    }
+
+    if (meetingType === 'ONE_TIME' && selectedDates.length === 0) {
+      setError('Please select at least one date')
       return
     }
 
@@ -66,12 +80,15 @@ export function CreateMeetingForm() {
           organizerEmail: email,
           organizerTimezone: timezone,
           expectedParticipants: parseInt(participantCount),
+          meetingType,
           dateRangeStart: dateRange.from.toISOString(),
           dateRangeEnd: dateRange.to.toISOString(),
+          selectedDates: meetingType === 'ONE_TIME' ? selectedDates.map(d => d.toISOString()) : [],
           slotDuration: parseInt(slotDuration),
           availability: selectedSlots.map(slot => ({
             start: slot.start.toISOString(),
             end: slot.end.toISOString(),
+            dayOfWeek: slot.dayOfWeek,
           })),
         }),
       })
@@ -151,6 +168,34 @@ export function CreateMeetingForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Meeting Type Selection */}
+          <div className="space-y-2">
+            <Label>Meeting Type</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={meetingType === 'ONE_TIME' ? 'default' : 'outline'}
+                onClick={() => setMeetingType('ONE_TIME')}
+                className="flex-1"
+              >
+                One-Time Meeting
+              </Button>
+              <Button
+                type="button"
+                variant={meetingType === 'RECURRING' ? 'default' : 'outline'}
+                onClick={() => setMeetingType('RECURRING')}
+                className="flex-1"
+              >
+                Recurring Meeting
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {meetingType === 'ONE_TIME'
+                ? 'Select specific dates for a one-time meeting'
+                : 'Select weekly availability for recurring meetings'}
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="participants">Number of Participants</Label>
@@ -185,32 +230,62 @@ export function CreateMeetingForm() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Date Range</Label>
-            <div className="flex flex-wrap gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="justify-start">
-                    {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="range"
-                    selected={{ from: dateRange.from, to: dateRange.to }}
-                    onSelect={(range) => {
-                      if (range?.from && range?.to) {
-                        setDateRange({ from: range.from, to: range.to })
-                        setSelectedSlots([]) // Clear slots when date range changes
-                      }
-                    }}
-                    numberOfMonths={2}
-                    disabled={{ before: new Date() }}
-                  />
-                </PopoverContent>
-              </Popover>
+          {/* Date Selection - Different UI based on meeting type */}
+          {meetingType === 'ONE_TIME' ? (
+            <div className="space-y-2">
+              <Label>Select Dates</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Click on the dates you want to consider for the meeting
+              </p>
+              <div className="border rounded-lg p-4">
+                <Calendar
+                  mode="multiple"
+                  selected={selectedDates}
+                  onSelect={(dates) => {
+                    setSelectedDates(dates || [])
+                    setSelectedSlots([]) // Clear slots when dates change
+                  }}
+                  numberOfMonths={2}
+                  disabled={{ before: new Date() }}
+                  className="mx-auto"
+                />
+              </div>
+              {selectedDates.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {selectedDates.length} date{selectedDates.length !== 1 ? 's' : ''} selected
+                </p>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>Date Range</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                The period during which the recurring meeting will take place
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="justify-start">
+                      {format(dateRange.from, 'MMM d, yyyy')} - {format(dateRange.to, 'MMM d, yyyy')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={{ from: dateRange.from, to: dateRange.to }}
+                      onSelect={(range) => {
+                        if (range?.from && range?.to) {
+                          setDateRange({ from: range.from, to: range.to })
+                        }
+                      }}
+                      numberOfMonths={2}
+                      disabled={{ before: new Date() }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -219,19 +294,37 @@ export function CreateMeetingForm() {
         <CardHeader>
           <CardTitle>Select Your Availability</CardTitle>
           <CardDescription>
-            Click and drag to select time slots when you are available.
-            Times are shown in your local timezone.
+            {meetingType === 'ONE_TIME'
+              ? 'Click and drag to select time slots on the selected dates.'
+              : 'Click and drag to select your weekly availability.'}
+            {' '}Times are shown in your local timezone.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TimeGrid
-            startDate={dateRange.from}
-            endDate={dateRange.to}
-            slotDuration={parseInt(slotDuration) as 15 | 30 | 60}
-            timezone={timezone}
-            selectedSlots={selectedSlots}
-            onSlotsChange={setSelectedSlots}
-          />
+          {meetingType === 'ONE_TIME' ? (
+            selectedDates.length > 0 ? (
+              <TimeGrid
+                startDate={selectedDates[0]}
+                endDate={selectedDates[selectedDates.length - 1]}
+                slotDuration={parseInt(slotDuration) as 15 | 30 | 60}
+                timezone={timezone}
+                selectedSlots={selectedSlots}
+                onSlotsChange={setSelectedSlots}
+                selectedDatesOnly={selectedDates}
+              />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Please select at least one date above to show available time slots
+              </div>
+            )
+          ) : (
+            <WeeklyTimeGrid
+              slotDuration={parseInt(slotDuration) as 15 | 30 | 60}
+              timezone={timezone}
+              selectedSlots={selectedSlots}
+              onSlotsChange={setSelectedSlots}
+            />
+          )}
           {selectedSlots.length > 0 && (
             <p className="mt-4 text-sm text-muted-foreground">
               {selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''} selected

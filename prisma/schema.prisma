@@ -15,8 +15,10 @@ model Meeting {
   organizerEmail       String
   organizerTimezone    String
   expectedParticipants Int
+  meetingType          MeetingType   @default(ONE_TIME)
   dateRangeStart       DateTime
   dateRangeEnd         DateTime
+  selectedDates        DateTime[]    // For one-time: specific dates selected
   slotDuration         Int           // 15, 30, or 60 minutes
   status               MeetingStatus @default(ACTIVE)
   createdAt            DateTime      @default(now())
@@ -47,6 +49,7 @@ model Availability {
   participantId String
   startTime     DateTime // Stored in UTC
   endTime       DateTime // Stored in UTC
+  dayOfWeek     Int?     // 0-6 for recurring meetings (0=Sunday, 1=Monday, etc.)
 
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
@@ -56,4 +59,9 @@ model Availability {
 enum MeetingStatus {
   ACTIVE
   COMPLETED
+}
+
+enum MeetingType {
+  ONE_TIME
+  RECURRING
 }

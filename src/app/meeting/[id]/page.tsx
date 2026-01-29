@@ -1,10 +1,13 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { ParticipantForm } from '@/components/ParticipantForm'
+import type { Participant, Availability } from '@prisma/client'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
+
+type ParticipantWithAvailability = Participant & { availability: Availability[] }
 
 export default async function MeetingPage({ params }: PageProps) {
   const { id } = await params
@@ -57,16 +60,19 @@ export default async function MeetingPage({ params }: PageProps) {
             slotDuration={meeting.slotDuration as 15 | 30 | 60}
             expectedParticipants={meeting.expectedParticipants}
             currentParticipants={participantCount}
-            existingParticipants={meeting.participants.map(p => ({
+            existingParticipants={meeting.participants.map((p: ParticipantWithAvailability) => ({
               id: p.id,
               name: p.name,
               email: p.email,
               timezone: p.timezone,
-              availability: p.availability.map(a => ({
+              availability: p.availability.map((a: Availability) => ({
                 start: a.startTime,
                 end: a.endTime,
+                dayOfWeek: a.dayOfWeek ?? undefined,
               })),
             }))}
+            meetingType={meeting.meetingType}
+            selectedDates={meeting.selectedDates}
           />
         )}
 

@@ -15,6 +15,7 @@ interface TimeGridProps {
   onSlotsChange: (slots: TimeSlot[]) => void
   existingParticipants?: ParticipantWithAvailability[]
   readonly?: boolean
+  selectedDatesOnly?: Date[] // For one-time meetings: only show these specific dates
 }
 
 export function TimeGrid({
@@ -26,12 +27,18 @@ export function TimeGrid({
   onSlotsChange,
   existingParticipants = [],
   readonly = false,
+  selectedDatesOnly,
 }: TimeGridProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [dragMode, setDragMode] = useState<'select' | 'deselect'>('select')
 
-  // Generate days between start and end
+  // Generate days between start and end (or use selectedDatesOnly if provided)
   const days = useMemo(() => {
+    // If selectedDatesOnly is provided, use those dates instead
+    if (selectedDatesOnly && selectedDatesOnly.length > 0) {
+      return selectedDatesOnly.map(d => startOfDay(d)).sort((a, b) => a.getTime() - b.getTime())
+    }
+
     const result: Date[] = []
     let current = startOfDay(startDate)
     const end = startOfDay(endDate)
@@ -40,7 +47,7 @@ export function TimeGrid({
       current = addDays(current, 1)
     }
     return result
-  }, [startDate, endDate])
+  }, [startDate, endDate, selectedDatesOnly])
 
   // Generate time slots for a day (8 AM to 10 PM)
   const slotsPerDay = useMemo(() => {

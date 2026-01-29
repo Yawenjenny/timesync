@@ -15,8 +15,9 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TimeGrid } from '@/components/TimeGrid'
+import WeeklyTimeGrid from '@/components/WeeklyTimeGrid'
 import { TIMEZONES, detectUserTimezone } from '@/lib/timezones'
-import { TimeSlot, ParticipantWithAvailability } from '@/types'
+import { TimeSlot, ParticipantWithAvailability, MeetingType } from '@/types'
 
 interface ParticipantFormProps {
   meetingId: string
@@ -27,6 +28,8 @@ interface ParticipantFormProps {
   expectedParticipants: number
   currentParticipants: number
   existingParticipants: ParticipantWithAvailability[]
+  meetingType: MeetingType
+  selectedDates?: Date[] // For one-time meetings
 }
 
 export function ParticipantForm({
@@ -38,6 +41,8 @@ export function ParticipantForm({
   expectedParticipants,
   currentParticipants,
   existingParticipants,
+  meetingType,
+  selectedDates,
 }: ParticipantFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -80,6 +85,7 @@ export function ParticipantForm({
           availability: selectedSlots.map(slot => ({
             start: slot.start.toISOString(),
             end: slot.end.toISOString(),
+            ...(meetingType === 'RECURRING' && slot.dayOfWeek !== undefined ? { dayOfWeek: slot.dayOfWeek } : {}),
           })),
         }),
       })
@@ -222,6 +228,11 @@ export function ParticipantForm({
           <CardDescription>
             Click and drag to select time slots when you are available.
             Times are shown in your local timezone.
+            {meetingType === 'RECURRING' && (
+              <span className="block mt-1">
+                Select your weekly recurring availability (these times will repeat each week).
+              </span>
+            )}
             {existingParticipants.length > 0 && (
               <span className="block mt-1">
                 Darker colors indicate more people are available at that time.
@@ -230,15 +241,26 @@ export function ParticipantForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <TimeGrid
-            startDate={new Date(dateRangeStart)}
-            endDate={new Date(dateRangeEnd)}
-            slotDuration={slotDuration}
-            timezone={timezone}
-            selectedSlots={selectedSlots}
-            onSlotsChange={setSelectedSlots}
-            existingParticipants={existingParticipants}
-          />
+          {meetingType === 'RECURRING' ? (
+            <WeeklyTimeGrid
+              slotDuration={slotDuration}
+              timezone={timezone}
+              selectedSlots={selectedSlots}
+              onSlotsChange={setSelectedSlots}
+              existingParticipants={existingParticipants}
+            />
+          ) : (
+            <TimeGrid
+              startDate={new Date(dateRangeStart)}
+              endDate={new Date(dateRangeEnd)}
+              slotDuration={slotDuration}
+              timezone={timezone}
+              selectedSlots={selectedSlots}
+              onSlotsChange={setSelectedSlots}
+              existingParticipants={existingParticipants}
+              selectedDatesOnly={selectedDates}
+            />
+          )}
           {selectedSlots.length > 0 && (
             <p className="mt-4 text-sm text-muted-foreground">
               {selectedSlots.length} slot{selectedSlots.length !== 1 ? 's' : ''} selected
