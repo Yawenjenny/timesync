@@ -39,12 +39,12 @@ export async function POST(request: NextRequest) {
         organizerName,
         organizerEmail,
         organizerTimezone,
-        expectedParticipants: parseInt(expectedParticipants),
+        expectedParticipants: typeof expectedParticipants === 'number' ? expectedParticipants : parseInt(expectedParticipants),
         dateRangeStart: new Date(dateRangeStart),
         dateRangeEnd: new Date(dateRangeEnd),
-        slotDuration: parseInt(slotDuration),
-        meetingType,
-        selectedDates: selectedDates.map((d: string) => new Date(d)),
+        slotDuration: typeof slotDuration === 'number' ? slotDuration : parseInt(slotDuration),
+        meetingType: meetingType || 'ONE_TIME',
+        selectedDates: Array.isArray(selectedDates) ? selectedDates.map((d: string) => new Date(d)) : [],
         participants: {
           create: {
             name: organizerName,
@@ -72,8 +72,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(meeting, { status: 201 })
   } catch (error) {
     console.error('Error creating meeting:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to create meeting' },
+      { error: `Failed to create meeting: ${errorMessage}` },
       { status: 500 }
     )
   }
