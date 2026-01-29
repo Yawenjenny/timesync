@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { setHours, setMinutes } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { TimeSlot, ParticipantWithAvailability } from '@/types'
 
@@ -78,9 +77,9 @@ export default function WeeklyTimeGrid({
 
       const { hour, minute } = slotsPerDay[slotIndex]
 
-      // Create a reference date for the time (we use a fixed date since it's recurring)
-      const baseDate = new Date(Date.UTC(2000, 0, 2 + dayOfWeek)) // Jan 2, 2000 is a Sunday
-      const slotStart = setMinutes(setHours(baseDate, hour), minute)
+      // Create a reference date for the time using UTC (we use a fixed date since it's recurring)
+      // Jan 2, 2000 is a Sunday (dayOfWeek 0)
+      const slotStart = new Date(Date.UTC(2000, 0, 2 + dayOfWeek, hour, minute, 0, 0))
       const slotEnd = new Date(slotStart.getTime() + slotDuration * 60 * 1000)
 
       const existingIndex = selectedSlots.findIndex(
